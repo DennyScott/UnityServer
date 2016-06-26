@@ -6,28 +6,47 @@ var players = [];
 io.on('connection', (socket) => {
 
     var thisPlayerId = shortid.generate();
-    players.push(thisPlayerId);
+    var player = {
+      id: thisPlayerId,
+      x: 0,
+      y: 0
+    }
+    players[thisPlayerId] = player;
 
     console.log("Client Connected, broadcasting spawn, id: " + thisPlayerId);
     socket.broadcast.emit('spawn', {id: thisPlayerId});
+    socket.broadcast.emit('requestPosition');
 
-    players.forEach((playerId) => {
-      if(playerId === thisPlayerId) return;
-      socket.emit('spawn', {id: playerId});
+    for(var playerId in players) {
+
+      if(playerId === thisPlayerId)
+       continue;
+
+      socket.emit('spawn', players[playerId]);
       console.log('sending spawn to new player, with id ' + playerId);
-    });
+    }
 
     socket.on('move', (data) => {
       data.id = thisPlayerId;
       console.log("Client Moved", JSON.stringify(data));
 
+      player.x = data.x;
+      player.y = data.y;
+
       socket.broadcast.emit('move', data);
+    });
+
+    socket.on('updatePosition', (data) => {
+      console.log("Update Position ", data);
+
+      data.id = thisPlayerId;
+      socket.broadcast.emit("updatePosition", data);
     });
 
     socket.on('disconnect', () => {
       console.log("Client Disconnected");
 
-      players.splice(players.indexOf(thisPlayerId), 1);
+      delete players[thisPlayerId];
       socket.broadcast.emit('disconnected', {id : thisPlayerId})
     });
 });
